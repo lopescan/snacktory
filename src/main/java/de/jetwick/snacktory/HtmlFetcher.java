@@ -357,8 +357,11 @@ public class HtmlFetcher {
             hConn.setRequestMethod("HEAD");
             hConn.connect();
             responseCode = hConn.getResponseCode();
-            hConn.getInputStream().close();
-            if (responseCode == HttpURLConnection.HTTP_OK)
+            try {
+				hConn.getInputStream().close();
+			} catch (Exception e) {
+			}
+			if (responseCode == HttpURLConnection.HTTP_OK)
                 return urlAsString;
 
             newUrl = hConn.getHeaderField("Location");
