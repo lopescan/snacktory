@@ -35,6 +35,8 @@ import java.util.zip.InflaterInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.amazonaws.util.StringUtils;
+
 /**
  * Class to fetch articles. This class is thread safe.
  *
@@ -74,7 +76,7 @@ public class HtmlFetcher {
         reader.close();
     }
     private String referrer = "https://github.com/karussell/snacktory";
-    private String userAgent = "Mozilla/5.0 (compatible; Snacktory; +" + referrer + ")";
+    private String userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:10.0) Gecko/20100101 Firefox/27.0";
     private String cacheControl = "max-age=0";
     private String language = "en-us";
     private String accept = "application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5";
@@ -312,6 +314,29 @@ public class HtmlFetcher {
         return fetchAsString(urlAsString, timeout, true);
     }
 
+    public FetchResult fetchHtmlString(String urlAsString, int timeout, boolean includeSomeGooseOptions) throws MalformedURLException, IOException{
+        HttpURLConnection hConn = createUrlConnection(urlAsString, timeout, includeSomeGooseOptions);
+        urlAsString = getResolvedConnection(hConn, urlAsString, timeout);
+        String encoding = hConn.getContentEncoding();
+        InputStream is;
+        if (encoding != null && encoding.equalsIgnoreCase("gzip")) {
+            is = new GZIPInputStream(hConn.getInputStream());
+        } else if (encoding != null && encoding.equalsIgnoreCase("deflate")) {
+            is = new InflaterInputStream(hConn.getInputStream(), new Inflater(true));
+        } else {
+            is = hConn.getInputStream();
+        }
+        String contentType = hConn.getContentType()==null ? "*/*" : hConn.getContentType();
+        String res="";
+        if (contentType.contains("text/html")) {
+            String enc = Converter.extractEncoding(contentType);
+            res = createConverter(urlAsString).streamToString(is, enc);
+            if (logger.isDebugEnabled())
+                logger.debug(res.length() + " FetchAsString:" + urlAsString);
+        }
+        return new FetchResult(urlAsString,is,contentType,res);
+    }
+    
     public String fetchAsString(String urlAsString, int timeout, boolean includeSomeGooseOptions)
             throws MalformedURLException, IOException {
         HttpURLConnection hConn = createUrlConnection(urlAsString, timeout, includeSomeGooseOptions);
@@ -336,7 +361,35 @@ public class HtmlFetcher {
     public Converter createConverter(String url) {
         return new Converter(url);
     }
+    
+    private String getResolvedConnection(HttpURLConnection hConn, String url, int timeout) throws IOException{
+        
+        int responseStatus = hConn.getResponseCode();
+        
+        if (responseStatus == HttpURLConnection.HTTP_MOVED_TEMP || responseStatus == HttpURLConnection.HTTP_MOVED_PERM
+                || responseStatus == HttpURLConnection.HTTP_SEE_OTHER) {
+            url = hConn.getHeaderField("Location");
+            if(!StringUtils.isNullOrEmpty(url)){
+                // some services use (none-standard) utf8 in their location header
+                if (url.startsWith("http://bit.ly") || url.startsWith("http://is.gd"))
+                    url = encodeUriFromHeader(url);
 
+                // fix problems if shortened twice. as it is often the case after twitters' t.co bullshit
+                if (furtherResolveNecessary.contains(SHelper.extractDomain(url, true)))
+                    url = getResolvedUrl(url, timeout);
+                
+                hConn = (HttpURLConnection) new URL(url).openConnection();
+                hConn.setRequestProperty("User-Agent", userAgent);
+                hConn.setRequestProperty("Accept", accept);
+                hConn.setRequestProperty("Accept-Encoding", "gzip, deflate");
+                hConn.setConnectTimeout(timeout);
+                hConn.setReadTimeout(timeout);
+            }
+        }
+        return url;
+    }
+    
+    
     /**
      * On some devices we have to hack:
      * http://developers.sun.com/mobility/reference/techart/design_guidelines/http_redirection.html
@@ -357,10 +410,7 @@ public class HtmlFetcher {
             hConn.setRequestMethod("HEAD");
             hConn.connect();
             responseCode = hConn.getResponseCode();
-            try {
-				hConn.getInputStream().close();
-			} catch (Exception e) {
-			}
+			hConn.getInputStream().close();
 			if (responseCode == HttpURLConnection.HTTP_OK)
                 return urlAsString;
 
@@ -415,7 +465,7 @@ public class HtmlFetcher {
         Proxy proxy = getProxy();
         HttpURLConnection hConn = (HttpURLConnection) url.openConnection(proxy);
         hConn.setRequestProperty("User-Agent", userAgent);
-        hConn.setRequestProperty("Accept", accept);
+        //hConn.setRequestProperty("Accept", accept);
 
         if (includeSomeGooseOptions) {
             hConn.setRequestProperty("Accept-Language", language);
