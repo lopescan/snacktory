@@ -410,8 +410,8 @@ public class HtmlFetcher {
             hConn.setRequestMethod("HEAD");
             hConn.connect();
             responseCode = hConn.getResponseCode();
-			hConn.getInputStream().close();
-			if (responseCode == HttpURLConnection.HTTP_OK)
+            hConn.getInputStream().close();
+            if (responseCode == HttpURLConnection.HTTP_OK)
                 return urlAsString;
 
             newUrl = hConn.getHeaderField("Location");
