@@ -131,8 +131,8 @@ public class ArticleTextExtractor {
             throw new NullPointerException("missing document");
 
         res.setTitle(extractTitle(doc));
-        res.setDescription(extractDescription(doc));
-        res.setCanonicalUrl(extractCanonicalUrl(doc));
+        //res.setDescription(extractDescription(doc));
+        //res.setCanonicalUrl(extractCanonicalUrl(doc));
 
         // now remove the clutter
         prepareDocument(doc);
@@ -152,13 +152,13 @@ public class ArticleTextExtractor {
         }
         if (bestMatchElement != null) {
             List<ImageResult> images = new ArrayList<ImageResult>();
-            Element imgEl = determineImageSource(bestMatchElement, images);
-            if (imgEl != null) {
+            //Element imgEl = determineImageSource(bestMatchElement, images);
+            /*if (imgEl != null) {
                 res.setImageUrl(SHelper.replaceSpaces(imgEl.attr("src")));
                 // TODO remove parent container of image if it is contained in bestMatchElement
                 // to avoid image subtitles flooding in
                 res.setImages(images);
-            }
+            }*/
 
             // concatTextIfMultipleNodesExist method returns text/content only if message/story body is beleived to be in multiple sections on the page
             // and not all segments are concatenated and returned by default.
@@ -176,17 +176,17 @@ public class ArticleTextExtractor {
                 res.setText(finalText);
 //                print("best element:", bestMatchElement);
             }
-            res.setTextList(formatter.getTextList(bestMatchElement));
+            //res.setTextList(formatter.getTextList(bestMatchElement));
         }
 
-        if (res.getImageUrl().isEmpty()) {
+        /*if (res.getImageUrl().isEmpty()) {
             res.setImageUrl(extractImageUrl(doc));
-        }
+        }*/
 
-        res.setRssUrl(extractRssUrl(doc));
+        /*res.setRssUrl(extractRssUrl(doc));
         res.setVideoUrl(extractVideoUrl(doc));
         res.setFaviconUrl(extractFaviconUrl(doc));
-        res.setKeywords(extractKeywords(doc));
+        res.setKeywords(extractKeywords(doc));*/
         return res;
     }
 
